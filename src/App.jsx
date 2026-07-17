@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Users, UserPlus, Trash2, Edit2, Shield, CalendarDays, Play, Trophy,
   X, ChevronRight, Plus, ArrowLeftRight, Check, Swords, ListChecks,
-  Circle, Award, TrendingUp, ChevronLeft, RotateCcw, Coins
+  Circle, Award, TrendingUp, ChevronLeft, RotateCcw, Coins, Lock, LogIn,
+  LogOut, Eye, EyeOff
 } from "lucide-react";
 
 /* ----------------------------- constants ----------------------------- */
@@ -30,6 +31,51 @@ function reqRunRate(target, runsScored, ballsRemaining) {
 }
 function structClone(obj) {
   return typeof structuredClone === "function" ? structuredClone(obj) : JSON.parse(JSON.stringify(obj));
+}
+
+const AUTH_SESSION_KEY = "cricktrack-session";
+const APP_LOGIN_USERNAME = import.meta.env.VITE_CRICKTRACK_USERNAME || "";
+const APP_LOGIN_PASSWORD = import.meta.env.VITE_CRICKTRACK_PASSWORD || "";
+
+function normalizeUsername(value) {
+  return value.trim().toLowerCase();
+}
+
+function readStoredSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSession(user) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ username: user.username }));
+}
+
+function clearStoredSession() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+function scopedDataKey(username, key) {
+  return `user:${normalizeUsername(username)}:${key}`;
+}
+
+async function authenticateUser({ username, password }) {
+  const normalized = normalizeUsername(username);
+  if (!normalized || !password) throw new Error("Please enter both a username and password.");
+  if (!APP_LOGIN_USERNAME || !APP_LOGIN_PASSWORD) {
+    throw new Error("Login credentials are not configured.");
+  }
+  if (normalized !== normalizeUsername(APP_LOGIN_USERNAME) || password !== APP_LOGIN_PASSWORD) {
+    throw new Error("Invalid credentials");
+  }
+
+  return { username: normalized };
 }
 
 /* -------- storage layer: JSONBin.io (see src/storage.js) -------- */
@@ -143,6 +189,66 @@ function Modal({ title, onClose, children, wide }) {
   );
 }
 
+function AuthScreen({ onAuthenticated }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const user = await authenticateUser({ username, password });
+      writeStoredSession(user);
+      onAuthenticated(user);
+    } catch (err) {
+      setError(err.message || "Unable to sign in right now.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <PageShell>
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--cream)" }}>
+        <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm" style={{ borderColor: "var(--line)" }}>
+          <div className="flex justify-center mb-4">
+            <div className="rounded-full p-3" style={{ background: "var(--pitch)" }}>
+              <Lock size={24} color="white" />
+            </div>
+          </div>
+          <div className="text-center mb-4">
+            <h2 className="disp text-2xl font-semibold" style={{ color: "var(--ink)" }}>Restricted access</h2>
+            <p className="text-sm mt-1 opacity-70">Use the single username and password configured for this app to access your score tracker.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: "var(--ink)" }}>Username</label>
+              <Input autoFocus value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter username" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: "var(--ink)" }}>Password</label>
+              <div className="relative">
+                <Input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" className="pr-10" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[color:var(--pitch)]">
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            {error && <p className="text-xs text-[color:var(--red)]">{error}</p>}
+            <Btn type="submit" variant="primary" className="w-full justify-center" disabled={loading}>
+              {loading ? "Please wait…" : <><LogIn size={16} /> Sign in</>}
+            </Btn>
+          </form>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
 function EmptyState({ icon: Icon, text, sub }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center gap-2 opacity-70">
@@ -155,14 +261,14 @@ function EmptyState({ icon: Icon, text, sub }) {
 
 /* ------------------------------ Tabs nav ------------------------------ */
 
-function TopNav({ view, setView, hasLive }) {
+function TopNav({ view, setView, hasLive, currentUser, onLogout }) {
   const tabs = [
     { id: "players", label: "Players", icon: Users },
     { id: "teams", label: "Teams", icon: Shield },
     { id: "matches", label: "Matches", icon: CalendarDays },
   ];
   return (
-    <div className="flex items-center justify-between px-4 sm:px-6 py-3" style={{ background: "var(--pitch)" }}>
+    <div className="flex items-center justify-between px-4 sm:px-6 py-3 gap-2" style={{ background: "var(--pitch)" }}>
       <div className="flex items-center gap-2">
         <Trophy size={20} color="var(--gold)" />
         <span className="disp text-white font-bold tracking-wide text-base sm:text-lg">CrickTrack</span>
@@ -184,11 +290,19 @@ function TopNav({ view, setView, hasLive }) {
           );
         })}
       </div>
-      {hasLive ? (
-        <button onClick={() => setView("live")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold disp" style={{ background: "var(--red)", color: "white" }}>
-          <Circle size={8} fill="white" className="animate-pulse" /> LIVE
-        </button>
-      ) : <div style={{ width: 10 }} />}
+      <div className="flex items-center gap-2">
+        {currentUser && <span className="hidden sm:block text-xs text-white/80">{currentUser.username}</span>}
+        {hasLive ? (
+          <button onClick={() => setView("live")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold disp" style={{ background: "var(--red)", color: "white" }}>
+            <Circle size={8} fill="white" className="animate-pulse" /> LIVE
+          </button>
+        ) : <div style={{ width: 10 }} />}
+        {onLogout && (
+          <button onClick={onLogout} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold disp" style={{ background: "rgba(255,255,255,0.12)", color: "white" }}>
+            <LogOut size={14} /> <span className="hidden sm:inline">Logout</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -199,7 +313,7 @@ function PlayersPanel({ players, setPlayers }) {
   const [modal, setModal] = useState(null); // {mode:'new'|'edit', player}
   const [query, setQuery] = useState("");
 
-  function openNew() { setModal({ mode: "new", player: { id: uid(), name: "", role: "Batsman" } }); }
+  function openNew() { setModal({ mode: "new", player: { id: uid(), name: "", role: "All-Rounder" } }); }
   function openEdit(p) { setModal({ mode: "edit", player: { ...p } }); }
 
   function save(p) {
@@ -1162,24 +1276,43 @@ export default function App() {
   const [view, setView] = useState("players");
   const [liveId, setLiveId] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [authUser, setAuthUser] = useState(() => readStoredSession());
   const skipSave = useRef(true);
 
   useEffect(() => {
+    setAuthReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authReady || !authUser) {
+      setLoaded(false);
+      skipSave.current = true;
+      return;
+    }
+
+    let active = true;
+    skipSave.current = true;
     (async () => {
       const [p, t, m] = await Promise.all([
-        loadKey("players", []),
-        loadKey("teams", []),
-        loadKey("matches", []),
+        loadKey(scopedDataKey(authUser.username, "players"), []),
+        loadKey(scopedDataKey(authUser.username, "teams"), []),
+        loadKey(scopedDataKey(authUser.username, "matches"), []),
       ]);
-      setPlayers(p); setTeams(t); setMatches(m);
+      if (!active) return;
+      setPlayers(p || []); setTeams(t || []); setMatches(m || []);
       setLoaded(true);
       skipSave.current = false;
     })();
-  }, []);
 
-  useEffect(() => { if (!skipSave.current) saveKey("players", players); }, [players]);
-  useEffect(() => { if (!skipSave.current) saveKey("teams", teams); }, [teams]);
-  useEffect(() => { if (!skipSave.current) saveKey("matches", matches); }, [matches]);
+    return () => {
+      active = false;
+    };
+  }, [authReady, authUser]);
+
+  useEffect(() => { if (skipSave.current || !authUser) return; saveKey(scopedDataKey(authUser.username, "players"), players); }, [players, authUser]);
+  useEffect(() => { if (skipSave.current || !authUser) return; saveKey(scopedDataKey(authUser.username, "teams"), teams); }, [teams, authUser]);
+  useEffect(() => { if (skipSave.current || !authUser) return; saveKey(scopedDataKey(authUser.username, "matches"), matches); }, [matches, authUser]);
 
   function updateMatch(id, fn) {
     setMatches((prev) => prev.map((m) => (m.id === id ? fn(structClone(m)) : m)));
@@ -1188,9 +1321,32 @@ export default function App() {
     setLiveId(id);
     setView("live");
   }
+  function handleLogout() {
+    clearStoredSession();
+    setAuthUser(null);
+    setPlayers([]);
+    setTeams([]);
+    setMatches([]);
+    setView("players");
+    setLiveId(null);
+    setLoaded(false);
+    skipSave.current = true;
+  }
 
   const liveMatch = matches.find((m) => m.id === liveId);
   const anyLive = matches.some((m) => m.status === "live");
+
+  if (!authReady) {
+    return (
+      <PageShell>
+        <div className="flex items-center justify-center py-24 opacity-60 text-sm disp">Checking session…</div>
+      </PageShell>
+    );
+  }
+
+  if (!authUser) {
+    return <AuthScreen onAuthenticated={setAuthUser} />;
+  }
 
   if (!loaded) {
     return (
@@ -1202,7 +1358,7 @@ export default function App() {
 
   return (
     <PageShell>
-      <TopNav view={view} setView={setView} hasLive={anyLive} />
+      <TopNav view={view} setView={setView} hasLive={anyLive} currentUser={authUser} onLogout={handleLogout} />
       {view === "players" && <PlayersPanel players={players} setPlayers={setPlayers} />}
       {view === "teams" && <TeamsPanel players={players} teams={teams} setTeams={setTeams} />}
       {view === "matches" && <MatchesPanel teams={teams} matches={matches} setMatches={setMatches} goLive={goLive} />}
