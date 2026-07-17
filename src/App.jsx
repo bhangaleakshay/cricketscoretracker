@@ -85,7 +85,7 @@ import { loadKey, saveKey } from "./storage.js";
 
 function PageShell({ children }) {
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", background: "var(--cream)", minHeight: "600px" }} className="w-full rounded-lg overflow-hidden">
+    <div style={{ fontFamily: "Inter, sans-serif", background: "var(--cream)", minHeight: "100dvh", paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }} className="w-full overflow-x-hidden">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
         :root {
@@ -112,8 +112,8 @@ function PageShell({ children }) {
 }
 
 function Btn({ children, onClick, variant = "primary", size = "md", disabled, className = "", type = "button" }) {
-  const base = "inline-flex items-center justify-center gap-1.5 font-semibold rounded transition disp tracking-wide";
-  const sizes = { sm: "px-2.5 py-1 text-xs", md: "px-4 py-2 text-sm", lg: "px-6 py-3 text-base" };
+  const base = "inline-flex items-center justify-center gap-1.5 font-semibold rounded transition disp tracking-wide min-h-[44px] touch-manipulation";
+  const sizes = { sm: "px-3 py-2.5 text-xs min-h-[40px]", md: "px-4 py-2.5 text-sm", lg: "px-6 py-3 text-base" };
   const variants = {
     primary: { background: "var(--pitch)", color: "white" },
     gold: { background: "var(--gold)", color: "var(--ink)" },
@@ -138,7 +138,7 @@ function Input(props) {
   return (
     <input
       {...props}
-      className={`w-full px-3 py-2 rounded border text-sm outline-none focus:ring-2 ${props.className || ""}`}
+      className={`w-full px-3 py-3 sm:py-2 rounded border text-base sm:text-sm outline-none focus:ring-2 ${props.className || ""}`}
       style={{ borderColor: "var(--line)", background: "white", ...props.style }}
     />
   );
@@ -147,7 +147,7 @@ function Select(props) {
   return (
     <select
       {...props}
-      className={`w-full px-3 py-2 rounded border text-sm outline-none bg-white ${props.className || ""}`}
+      className={`w-full px-3 py-3 sm:py-2 rounded border text-base sm:text-sm outline-none bg-white ${props.className || ""}`}
       style={{ borderColor: "var(--line)", ...props.style }}
     >
       {props.children}
@@ -176,8 +176,8 @@ function Modal({ title, onClose, children, wide }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,20,17,0.55)" }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-lg w-full ${wide ? "max-w-lg" : "max-w-sm"} max-h-[85vh] overflow-y-auto scrollbar-thin`}
-        style={{ border: "1px solid var(--line)" }}
+        className={`bg-white rounded-lg w-full ${wide ? "max-w-lg" : "max-w-sm"} max-h-[90vh] overflow-y-auto scrollbar-thin`}
+        style={{ border: "1px solid var(--line)", maxWidth: "min(92vw, 32rem)" }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--line)", background: "var(--pitch)" }}>
           <h3 className="disp text-white font-semibold tracking-wide">{title}</h3>
@@ -268,12 +268,12 @@ function TopNav({ view, setView, hasLive, currentUser, onLogout }) {
     { id: "matches", label: "Matches", icon: CalendarDays },
   ];
   return (
-    <div className="flex items-center justify-between px-4 sm:px-6 py-3 gap-2" style={{ background: "var(--pitch)" }}>
+    <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between px-4 sm:px-6 py-3 gap-2" style={{ background: "var(--pitch)" }}>
       <div className="flex items-center gap-2">
         <Trophy size={20} color="var(--gold)" />
         <span className="disp text-white font-bold tracking-wide text-base sm:text-lg">CrickTrack</span>
       </div>
-      <div className="flex items-center gap-1 bg-black/15 rounded-full p-1">
+      <div className="flex items-center gap-1 bg-black/15 rounded-full p-1 flex-wrap">
         {tabs.map((t) => {
           const Icon = t.icon;
           const active = view === t.id;
@@ -548,23 +548,34 @@ function TeamsPanel({ players, teams, setTeams }) {
           {players.length === 0 ? (
             <p className="text-sm opacity-60">No players in master list yet. Add players first.</p>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto scrollbar-thin">
-              {players.map((p) => {
-                const checked = assignTeam.playerIds.includes(p.id);
-                const otherTeam = !checked ? playerTeam(p.id, assignTeam.id) : null;
-                const disabled = !!otherTeam;
-                return (
-                  <label key={p.id} className={`flex items-center justify-between px-2 py-1.5 rounded ${disabled ? "opacity-45 cursor-not-allowed" : "cursor-pointer hover:bg-black/5"}`}>
-                    <div>
-                      <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{p.name}</span>
-                      <span className="text-xs opacity-60 ml-2">{p.role}</span>
-                      {disabled && <span className="text-xs ml-2" style={{ color: "var(--red)" }}>· in {otherTeam.name}</span>}
-                    </div>
-                    <input type="checkbox" checked={checked} disabled={disabled} onChange={() => togglePlayer(assignTeam.id, p.id)} />
-                  </label>
-                );
-              })}
-            </div>
+            <>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--ink)" }}>Selected players</p>
+                <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{ background: "var(--cream)", color: "var(--grass)", border: "1px solid var(--line)" }}>
+                  {assignTeam.playerIds.length} selected
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 max-h-96 overflow-y-auto scrollbar-thin">
+                {players.map((p, index) => {
+                  const checked = assignTeam.playerIds.includes(p.id);
+                  const otherTeam = !checked ? playerTeam(p.id, assignTeam.id) : null;
+                  const disabled = !!otherTeam;
+                  return (
+                    <label key={p.id} className={`flex items-center justify-between px-2 py-1.5 rounded ${disabled ? "opacity-45 cursor-not-allowed" : "cursor-pointer hover:bg-black/5"}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold min-w-6" style={{ color: "var(--blue)" }}>{index + 1} -</span>
+                        <div>
+                          <span className="text-sm font-medium" style={{ color: "var(--ink)" }}>{p.name}</span>
+                          <span className="text-xs opacity-60 ml-2">{p.role}</span>
+                          {disabled && <span className="text-xs ml-2" style={{ color: "var(--red)" }}>· in {otherTeam.name}</span>}
+                        </div>
+                      </div>
+                      <input type="checkbox" checked={checked} disabled={disabled} onChange={() => togglePlayer(assignTeam.id, p.id)} />
+                    </label>
+                  );
+                })}
+              </div>
+            </>
           )}
         </Modal>
       )}
@@ -769,7 +780,16 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
   const [nextBowler, setNextBowler] = useState("");
   const [wicketModal, setWicketModal] = useState(null); // {dismissal}
   const [byeRuns, setByeRuns] = useState(1);
-  const [extraModal, setExtraModal] = useState(null); // 'bye' | 'legbye'
+  const [noBallRuns, setNoBallRuns] = useState(1);
+  const [extraModal, setExtraModal] = useState(null); // 'bye' | 'legbye' | 'noball'
+  const [undoStack, setUndoStack] = useState([]);
+
+  function undoLastAction() {
+    if (undoStack.length === 0) return;
+    const previousMatch = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    updateMatch(match.id, () => previousMatch);
+  }
 
   /* ---- phase: setup-toss ---- */
   function confirmToss() {
@@ -858,6 +878,7 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
   }
 
   function recordRun(runs) {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       if (inn.needNewBowler || inn.needNewBatsman || inn.complete) return m;
@@ -878,9 +899,11 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       checkInningsEnd(m, inn);
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
   }
 
   function recordWide() {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       if (inn.needNewBowler || inn.needNewBatsman || inn.complete) return m;
@@ -891,20 +914,28 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       checkInningsEnd(m, inn);
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
   }
-  function recordNoBall() {
+  function recordNoBall(runs) {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       if (inn.needNewBowler || inn.needNewBatsman || inn.complete) return m;
-      inn.totalRuns += 1;
+      inn.totalRuns += runs;
       inn.extras.noballs += 1;
-      inn.bowlers[inn.currentBowlerId].runs += 1;
-      pushTimeline(inn, "No Ball");
+      inn.bowlers[inn.currentBowlerId].runs += runs;
+      inn.batsmen[inn.strikerId].runs += runs;
+      inn.batsmen[inn.strikerId].balls += 1;
+      pushTimeline(inn, `${runs} No Ball`);
       checkInningsEnd(m, inn);
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
+    setExtraModal(null);
+    setNoBallRuns(1);
   }
   function recordByeType(type, runs) {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       if (inn.needNewBowler || inn.needNewBatsman || inn.complete) return m;
@@ -922,10 +953,12 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       checkInningsEnd(m, inn);
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
     setExtraModal(null);
   }
 
   function confirmWicket(dismissal) {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       const bat = inn.batsmen[inn.strikerId];
@@ -960,23 +993,32 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       }
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
     setWicketModal(null);
   }
 
   function confirmNewBatsman() {
     if (!nextBatsman) return;
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
+      const rec = inn.batsmen[nextBatsman] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, dismissal: null };
+      if (rec.dismissal === "Retired Out") {
+        rec.out = false;
+        rec.dismissal = null;
+      }
       inn.strikerId = nextBatsman;
-      inn.batsmen[nextBatsman] = inn.batsmen[nextBatsman] || { runs: 0, balls: 0, fours: 0, sixes: 0, out: false, dismissal: null };
+      inn.batsmen[nextBatsman] = rec;
       inn.needNewBatsman = false;
       inn.pendingOutSlot = null;
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
     setNextBatsman("");
   }
   function confirmNewBowler() {
     if (!nextBowler) return;
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn = m.innings[m.innings.length - 1];
       inn.currentBowlerId = nextBowler;
@@ -984,10 +1026,12 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       inn.needNewBowler = false;
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
     setNextBowler("");
   }
 
   function startSecondInnings() {
+    const before = structClone(match);
     updateMatch(match.id, (m) => {
       const inn1 = m.innings[0];
       const target = inn1.totalRuns + 1;
@@ -995,6 +1039,7 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       m.phase = "setup-openers";
       return m;
     });
+    setUndoStack((prev) => [...prev, before].slice(-8));
   }
 
   /* ------------------------------ render ------------------------------ */
@@ -1106,7 +1151,8 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
   const bowlingSquad = players.filter((p) => bowlingTeam?.playerIds.includes(p.id));
   const availableBatsmen = battingSquad.filter((p) => {
     const rec = inning.batsmen[p.id];
-    return !(rec && rec.out) && p.id !== inning.strikerId && p.id !== inning.nonStrikerId;
+    const isRetiredOut = rec?.dismissal === "Retired Out";
+    return !(rec && rec.out && !isRetiredOut) && p.id !== inning.strikerId && p.id !== inning.nonStrikerId;
   });
   const availableBowlers = bowlingSquad.filter((p) => p.id !== inning.currentBowlerId);
 
@@ -1189,6 +1235,10 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
         </Card>
       ) : (
         <>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide opacity-60">Ball actions</p>
+            <Btn size="sm" variant="outline" onClick={undoLastAction} disabled={undoStack.length === 0} className="justify-center"><RotateCcw size={14} /> Undo</Btn>
+          </div>
           <div className="grid grid-cols-4 gap-2 mb-2">
             {[0, 1, 2, 3, 4, 5, 6].map((r) => (
               <Btn key={r} variant={r === 4 || r === 6 ? "gold" : "outline"} onClick={() => recordRun(r)} className="justify-center">{r}</Btn>
@@ -1197,7 +1247,7 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
           </div>
           <div className="grid grid-cols-4 gap-2 mb-2">
             <Btn size="sm" variant="ghost" className="justify-center border" style={{ borderColor: "var(--line)" }} onClick={recordWide}>Wide</Btn>
-            <Btn size="sm" variant="ghost" className="justify-center border" style={{ borderColor: "var(--line)" }} onClick={recordNoBall}>No Ball</Btn>
+            <Btn size="sm" variant="ghost" className="justify-center border" style={{ borderColor: "var(--line)" }} onClick={() => setExtraModal("noball")}>No Ball</Btn>
             <Btn size="sm" variant="ghost" className="justify-center border" style={{ borderColor: "var(--line)" }} onClick={() => setExtraModal("byes")}>Bye</Btn>
             <Btn size="sm" variant="ghost" className="justify-center border" style={{ borderColor: "var(--line)" }} onClick={() => setExtraModal("legbyes")}>Leg Bye</Btn>
           </div>
@@ -1226,14 +1276,22 @@ function LiveScoring({ match, teams, players, updateMatch, onBack }) {
       )}
 
       {extraModal && (
-        <Modal title={extraModal === "byes" ? "Byes" : "Leg Byes"} onClose={() => setExtraModal(null)}>
+        <Modal title={extraModal === "byes" ? "Byes" : extraModal === "legbyes" ? "Leg Byes" : "No Ball"} onClose={() => setExtraModal(null)}>
           <p className="text-xs opacity-60 mb-2">How many runs?</p>
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {[1, 2, 3, 4].map((r) => (
-              <Btn key={r} variant={byeRuns === r ? "gold" : "outline"} onClick={() => setByeRuns(r)} className="justify-center">{r}</Btn>
-            ))}
-          </div>
-          <Btn variant="primary" onClick={() => recordByeType(extraModal, byeRuns)} className="w-full justify-center"><Check size={16} /> Confirm</Btn>
+          {extraModal === "noball" ? (
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[1, 2, 3, 4, 5, 6, 7].map((r) => (
+                <Btn key={r} variant={noBallRuns === r ? "gold" : "outline"} onClick={() => setNoBallRuns(r)} className="justify-center">{r}</Btn>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[1, 2, 3, 4].map((r) => (
+                <Btn key={r} variant={byeRuns === r ? "gold" : "outline"} onClick={() => setByeRuns(r)} className="justify-center">{r}</Btn>
+              ))}
+            </div>
+          )}
+          <Btn variant="primary" onClick={() => extraModal === "noball" ? recordNoBall(noBallRuns) : recordByeType(extraModal, byeRuns)} className="w-full justify-center"><Check size={16} /> Confirm</Btn>
         </Modal>
       )}
     </div>
